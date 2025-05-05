@@ -1,0 +1,74 @@
+# Handwritten Digit Recognition
+
+# 1. Setup Environment and Imports
+%matplotlib inline
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from tensorflow.keras.datasets import mnist
+
+# 2. Load MNIST Dataset
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+print(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}")
+
+# 3. Data Preprocessing
+
+# 3.1 Check for Missing Values
+assert not np.isnan(X_train).any(), "Missing values in X_train"
+assert not np.isnan(X_test).any(), "Missing values in X_test"
+
+# 3.2 Remove Duplicate Records
+X_train_flat = X_train.reshape(X_train.shape[0], -1)
+df_train = pd.DataFrame(X_train_flat)
+df_train['label'] = y_train
+df_train_nodup = df_train.drop_duplicates()
+print(f"Removed {len(df_train) - len(df_train_nodup)} duplicate rows")
+y_train = df_train_nodup['label'].values
+X_train = df_train_nodup.drop('label', axis=1).values.reshape(-1, 28, 28)
+
+# 3.3 Convert Types and Normalize
+X_train = X_train.astype('float32') / 255.0
+X_test = X_test.astype('float32') / 255.0
+
+# 3.4 Encode Labels
+y_train_cat = to_categorical(y_train, 10)
+y_test_cat = to_categorical(y_test, 10)
+
+# 4. Reshape Data for CNN
+X_train = X_train.reshape(-1, 28, 28, 1)
+X_test = X_test.reshape(-1, 28, 28, 1)
+
+# 5. Build CNN Model
+model = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D(2,2),
+    Dropout(0.25),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(10, activation='softmax')
+])
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.summary()
+
+# 6. Train the Model
+history = model.fit(X_train, y_train_cat, epochs=10, batch_size=128, validation_split=0.1)
+
+# 7. Evaluate and Visualize
+test_loss, test_acc = model.evaluate(X_test, y_test_cat)
+print(f"\nTest Accuracy: {test_acc:.4f}")
+
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title("Model Accuracy")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
+plt.legend()
+plt.grid(True)
+plt.show()
